@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>liquibase-schema-export</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Liquibase Schema Export</name>
+    <description>Liquibase project to export PostgreSQL database schema</description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <liquibase.version>4.25.1</liquibase.version>
+        <postgresql.version>42.7.1</postgresql.version>
+        
+        <!-- Liquibase configuration properties -->
+        <liquibase.propertyFile>liquibase.properties</liquibase.propertyFile>
+        <liquibase.changeLogFile>src/main/resources/db/changelog/db.changelog-master.xml</liquibase.changeLogFile>
+        <liquibase.outputChangeLogFile>src/main/resources/db/changelog/generated-changelog.xml</liquibase.outputChangeLogFile>
+        <liquibase.changeLogFormat>xml</liquibase.changeLogFormat>
+    </properties>
+
+    <dependencies>
+        <!-- Liquibase Core -->
+        <dependency>
+            <groupId>org.liquibase</groupId>
+            <artifactId>liquibase-core</artifactId>
+            <version>${liquibase.version}</version>
+        </dependency>
+
+        <!-- PostgreSQL JDBC Driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Liquibase Maven Plugin -->
+            <plugin>
+                <groupId>org.liquibase</groupId>
+                <artifactId>liquibase-maven-plugin</artifactId>
+                <version>${liquibase.version}</version>
+                <configuration>
+                    <propertyFile>${liquibase.propertyFile}</propertyFile>
+                    <changeLogFile>${liquibase.changeLogFile}</changeLogFile>
+                    <outputChangeLogFile>${liquibase.outputChangeLogFile}</outputChangeLogFile>
+                    <diffChangeLogFile>src/main/resources/db/changelog/diff-changelog.xml</diffChangeLogFile>
+                    <logging>info</logging>
+                    <promptOnNonLocalDatabase>false</promptOnNonLocalDatabase>
+                    <licenseKey>aei76ou32thp785463214</licenseKey>
+                    
+                    <!-- Database object types to include -->
+                    <!-- Note: functions, storedprocedures, triggers require Liquibase Pro license -->
+                    <diffTypes>catalogs,checkconstraints,columns,data,foreignkeys,indexes,primarykeys,sequences,tables,triggers,uniqueconstraints,views,functions,storedprocedures</diffTypes>
+                    
+                    <!-- Output format configuration -->
+                    <outputFileEncoding>UTF-8</outputFileEncoding>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.postgresql</groupId>
+                        <artifactId>postgresql</artifactId>
+                        <version>${postgresql.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <!-- Maven Compiler Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- Profile for XML output format -->
+        <profile>
+            <id>xml-output</id>
+            <properties>
+                <liquibase.outputChangeLogFile>src/main/resources/db/changelog/generated-changelog.xml</liquibase.outputChangeLogFile>
+                <liquibase.changeLogFormat>xml</liquibase.changeLogFormat>
+            </properties>
+        </profile>
+
+        <!-- Profile for SQL output format -->
+        <profile>
+            <id>sql-output</id>
+            <properties>
+                <liquibase.outputChangeLogFile>src/main/resources/db/changelog/generated-changelog.sql</liquibase.outputChangeLogFile>
+                <liquibase.changeLogFormat>sql</liquibase.changeLogFormat>
+            </properties>
+        </profile>
+
+        <!-- Profile for YAML output format -->
+        <profile>
+            <id>yaml-output</id>
+            <properties>
+                <liquibase.outputChangeLogFile>src/main/resources/db/changelog/generated-changelog.yaml</liquibase.outputChangeLogFile>
+                <liquibase.changeLogFormat>yaml</liquibase.changeLogFormat>
+            </properties>
+        </profile>
+
+        <!-- Profile for JSON output format -->
+        <profile>
+            <id>json-output</id>
+            <properties>
+                <liquibase.outputChangeLogFile>src/main/resources/db/changelog/generated-changelog.json</liquibase.outputChangeLogFile>
+                <liquibase.changeLogFormat>json</liquibase.changeLogFormat>
+            </properties>
+        </profile>
+
+        <!-- Profile for JDBC-based database export + Liquibase workflow -->
+        <profile>
+            <id>jdbc-export</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <!-- Step 1: Export database using JDBC -->
+                            <execution>
+                                <id>export-database-jdbc</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>com.example.exporter.DatabaseExporter</mainClass>
+                                    <classpathScope>compile</classpathScope>
+                                </configuration>
+                            </execution>
+                            <!-- Step 2: Convert to Liquibase format -->
+                            <execution>
+                                <id>convert-to-liquibase</id>
+                                <phase>process-sources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>python3</executable>
+                                    <arguments>
+                                        <argument>scripts/convert-to-liquibase.py</argument>
+                                        <argument>exports/00_complete_export_*.sql</argument>
+                                        <argument>-o</argument>
+                                        <argument>src/main/resources/db/changelog</argument>
+                                        <argument>-f</argument>
+                                        <argument>all</argument>
+                                    </arguments>
+                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Profile for pg_dump + Liquibase workflow (requires PostgreSQL client tools) -->
+        <profile>
+            <id>pgdump-export</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <!-- Step 1: Export database using pg_dump -->
+                            <execution>
+                                <id>export-database</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bash</executable>
+                                    <arguments>
+                                        <argument>scripts/export-database.sh</argument>
+                                    </arguments>
+                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                </configuration>
+                            </execution>
+                            <!-- Step 2: Convert to Liquibase format -->
+                            <execution>
+                                <id>convert-to-liquibase</id>
+                                <phase>process-sources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>python3</executable>
+                                    <arguments>
+                                        <argument>scripts/convert-to-liquibase.py</argument>
+                                        <argument>exports/00_complete_export_${maven.build.timestamp}.sql</argument>
+                                        <argument>-o</argument>
+                                        <argument>src/main/resources/db/changelog</argument>
+                                        <argument>-f</argument>
+                                        <argument>all</argument>
+                                    </arguments>
+                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Profile for custom output path -->
+        <profile>
+            <id>custom-path</id>
+            <properties>
+                <liquibase.outputChangeLogFile>${custom.changelog.path}</liquibase.outputChangeLogFile>
+            </properties>
+        </profile>
+    </profiles>
+</project>
