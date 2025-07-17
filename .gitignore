@@ -61,9 +61,6 @@ build/
 ehthumbs.db
 Thumbs.db
 
-# Claude Code
-.claude/
-
 # Liquibase
 liquibase.log
 liquibase-*.log
